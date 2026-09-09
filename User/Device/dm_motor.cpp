@@ -13,11 +13,12 @@ namespace
 {
 constexpr float TWO_PI = 6.28318530717958647692f;
 
+// 对象存活期间即为进入临界保护期间
 class ScopedTaskCritical
 {
 public:
   ScopedTaskCritical()
-    : _active(xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
+    : _active(xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED) // 任务调度器启用时才会启用临界保护功能
   {
     if (_active)
     {
@@ -37,7 +38,7 @@ private:
   bool _active;
 };
 
-bool mode_valid(DmControlMode mode)
+bool mode_valid(DmControlMode mode) // 合法性检验
 {
   return (mode == DmControlMode::MIT) ||
          (mode == DmControlMode::POSITION_VELOCITY) ||
@@ -48,8 +49,8 @@ bool mode_valid(DmControlMode mode)
 template <DmMotorType TYPE>
 struct DmMotorDefaults;
 
-template <>
-struct DmMotorDefaults<DmMotorType::J4310_2EC>
+template <> // 声明这是一个完整特化，不再引入模板参数。
+struct DmMotorDefaults<DmMotorType::J4310_2EC> // 专门定义电机类型为 J4310_2EC 时的实现。此处意为以下默认值只适用于4310
 {
   static DmProtocolLimits resolve_limits(float position_max_rad,
                                          float velocity_max_rad_s,
