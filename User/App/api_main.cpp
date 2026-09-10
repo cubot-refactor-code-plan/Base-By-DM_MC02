@@ -122,7 +122,6 @@ void all_init()
                            NULL) == pdPASS);
 #endif
 
-  printf("freertos_init_ok\n");
 }
 
 
@@ -142,7 +141,6 @@ extern "C" void StartDefaultTask(void *argument)
 
   /* Flash 复位等待和 TinyUSB RTOS 对象都要求调度器已经运行。 */
   bsp_usb.init();
-  printf("Default Task Started\n");
 
   for (;;)
   {
@@ -151,6 +149,11 @@ extern "C" void StartDefaultTask(void *argument)
 #if APP_TEST_USB_TRANSPORT_ENABLED
     usb_transport_test_step();
 #endif
+
+#if APP_TEST_UART_TRANSPORT_ENABLED
+    uart_transport_test_step(); // USART1 收发测试：回显 + 周期心跳
+#endif
+
     osDelay(1);
   }
 }

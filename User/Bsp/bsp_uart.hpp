@@ -46,7 +46,8 @@
  *
  * @tparam BUFFER_SIZE DMA收发缓冲区大小（单位uint8_t），也是流缓冲区容量
  *
- * @note RX 路径：IDLE中断 → 停DMA → 投递流缓冲区 → 立即重启DMA；
+ * @note RX 路径：IDLE/TC 事件 → 投递流缓冲区 → 重新武装 RX
+ *       （HT 事件忽略；HAL 在 IDLE/TC 事件里已自行停掉 RX DMA，全程不触碰 TX DMA）；
  *       TX 路径：写入流缓冲区 → 任务上下文启动或TX Complete中断续传。
  */
 template <size_t BUFFER_SIZE = 256>
@@ -99,7 +100,8 @@ public:
   /**
    * @brief 初始化函数 创建FreeRTOS对象并启动IDLE接收
    *
-   * @return Status OK=初始化成功，IO_ERROR=FreeRTOS资源创建失败
+   * @return Status OK=初始化成功，
+   *                IO_ERROR=FreeRTOS资源创建失败或接收启动失败
    */
   Status init();
 
@@ -159,9 +161,12 @@ public:
   size_t get_rx_available_data();
 
   /**
-   * @brief IDLE接收完成处理（ISR上下文）
+   * @brief IDLE/TC 接收完成处理（ISR上下文）
    *
-   * @note 三步内联：停DMA → 投递流缓冲区 → 立即重启DMA。
+   * @note 只处理 IDLE 与 TC（缓冲区满）事件：HAL 在这两类事件里已自行停掉 RX DMA
+   *       并把 RxState 置回 READY，因此这里只需「投递流缓冲区 → 重新武装 RX」，
+   *       全程不触碰 TX DMA（不打断正在进行的发送）。
+   *       HAL 在半传输（HT）事件也会回调本函数，HT 不是帧边界，直接忽略。
    *
    * @param size 本帧接收到的字节数（HAL回调提供）
    * @param pxHigherPriorityTaskWoken 需初始化为pdFALSE，若唤醒高优先级任务则置为pdTRUE
@@ -178,15 +183,26 @@ public:
   void start_transmission_from_isr(BaseType_t *pxHigherPriorityTaskWoken);
 
   /**
-   * @brief DMA错误恢复：停DMA并重启接收（供 HAL_UART_ErrorCallback 接线调用）
+   * @brief UART 错误恢复（供 HAL_UART_ErrorCallback 调用）
+   *
+   * @note 阻塞性错误（ORE/FE/NE 等）后 HAL 已中止 RX，本函数复位 RX 状态并重新武装；
+   *       非阻塞错误（RX 仍在进行）不打断接收，避免丢弃在途数据。
+   *       全程只操作 RX，绝不触碰 TX DMA。
    */
   void handle_dma_error();
 
 private:
-  // 开始接收数据 启动DMA接收
-  void start_reception();
+  /**
+   * @brief 武装 DMA 接收（仅 RX）
+   * @note 调用前 RxState 必须为 READY（HAL 在 IDLE/TC 事件后已自动释放）
+   * @return true=武装成功；false=HAL 拒绝（BUSY/ERROR）
+   */
+  bool arm_reception();
 
-  // 停止接收数据 停止DMA接收
+  // 中止 RX 通道并复位接收状态（仅 RX，不触碰 TX DMA）
+  void abort_reception();
+
+  // 停止接收并中止 RX/TX DMA（仅用于析构等终止场景）
   void stop_reception();
 
   // 清理资源 清理所有分配的资源

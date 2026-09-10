@@ -131,7 +131,7 @@ public:
    * @return Status OK=成功取出一帧，TIMEOUT=超时无数据，
    *                BAD_ARG=参数非法，NOT_INIT=未初始化
    */
-  Status receive(CanRxMsg *msg, uint32_t timeout = osWaitForever);
+  Status receive(CanRxMsg *msg, uint32_t timeout);
   void   trigger_tx();                                               // 触发一次发送（任务上下文调用）
   void   trigger_tx_from_isr(BaseType_t *pxHigherPriorityTaskWoken); // 触发一次发送（ISR上下文调用）
   void   process_fifo0_isr();                                        // FIFO0 中断处理（供中断回调调用）

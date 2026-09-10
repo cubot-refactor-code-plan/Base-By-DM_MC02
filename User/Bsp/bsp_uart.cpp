@@ -100,6 +100,47 @@ extern "C"
 
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
   }
+
+  /**
+   * @brief UART 错误回调函数
+   * @note ORE/FE/NE 等错误后复位 RX 并重新武装，避免接收无声停摆
+   */
+  void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+  {
+    // UART5 仅接收，同样需要错误恢复
+    if (huart == &huart1)
+    {
+      bsp_uart1.handle_dma_error();
+    }
+    else if (huart == &huart3)
+    {
+      bsp_uart3.handle_dma_error();
+    }
+    else if (huart == &huart4)
+    {
+      bsp_uart4.handle_dma_error();
+    }
+    else if (huart == &huart5)
+    {
+      bsp_uart5.handle_dma_error();
+    }
+    else if (huart == &huart7)
+    {
+      bsp_uart7.handle_dma_error();
+    }
+    else if (huart == &huart8)
+    {
+      bsp_uart8.handle_dma_error();
+    }
+    else if (huart == &huart9)
+    {
+      bsp_uart9.handle_dma_error();
+    }
+    else if (huart == &huart10)
+    {
+      bsp_uart10.handle_dma_error();
+    }
+  }
 }
 
 /**
@@ -149,12 +190,13 @@ Status BspUart<BUFFER_SIZE>::init()
     _tx_stream_buffer = nullptr;
   }
 
-  // 启用IDLE中断
-  __HAL_UART_CLEAR_FLAG(_huart, UART_FLAG_IDLE);
-  SET_BIT(_huart->Instance->CR1, USART_CR1_IDLEIE);
-
-  // 启动接收
-  start_reception();
+  // 启动接收（HAL 内部会清 IDLE 标志并使能 IDLE 中断；失败则释放资源并上报）
+  if (!arm_reception())
+  {
+    abort_reception();       // 复位 RX 状态并关掉 IDLE 中断源
+    cleanup_resources();     // 释放已创建的资源
+    return Status::IO_ERROR; // 接收启动失败，避免静默失能
+  }
 
   return Status::OK; // 初始化成功
 }
@@ -295,16 +337,28 @@ size_t BspUart<BUFFER_SIZE>::get_rx_available_data()
   return 0;
 }
 
-// 开始接收数据实现
+// 武装 DMA 接收实现（仅 RX；调用前 RxState 必须为 READY）
 template <size_t BUFFER_SIZE>
-void BspUart<BUFFER_SIZE>::start_reception()
+bool BspUart<BUFFER_SIZE>::arm_reception()
 {
-  // 启动多字节DMA接收
-  HAL_UARTEx_ReceiveToIdle_DMA(_huart, _rx_dma_buffer, BUFFER_SIZE);
+  // 启动多字节 DMA 接收（IDLE 模式）；HAL 会自动清 IDLE 标志并使能 IDLE 中断
+  if (HAL_UARTEx_ReceiveToIdle_DMA(_huart, _rx_dma_buffer, BUFFER_SIZE) != HAL_OK)
+  {
+    return false; // 武装失败：由调用方决定重试或上报
+  }
   _rx_active = true;
+  return true;
 }
 
-// 停止接收数据实现
+// 中止 RX 通道实现（仅 RX：清错误标志 + 复位接收状态，不触碰 TX DMA）
+template <size_t BUFFER_SIZE>
+void BspUart<BUFFER_SIZE>::abort_reception()
+{
+  HAL_UART_AbortReceive(_huart);
+  ATOMIC_CLEAR_BIT(_huart->Instance->CR1, USART_CR1_IDLEIE); // 防止残留 IDLE 中断源
+}
+
+// 停止接收数据实现（终止场景：RX/TX DMA 全停）
 template <size_t BUFFER_SIZE>
 void BspUart<BUFFER_SIZE>::stop_reception()
 {
@@ -356,36 +410,44 @@ bool BspUart<BUFFER_SIZE>::is_transmitting()
   return (_huart->gState == HAL_UART_STATE_BUSY_TX);
 }
 
-// IDLE接收完成处理实现（ISR上下文）
+// IDLE/TC 接收完成处理实现（ISR上下文）
 template <size_t BUFFER_SIZE>
 void BspUart<BUFFER_SIZE>::on_idle_isr(uint16_t size, BaseType_t *pxHigherPriorityTaskWoken)
 {
-  // 1. 停止当前 DMA 传输，确保状态干净
-  HAL_UART_DMAStop(_huart);
+  // HAL 在半传输（HT）事件时也会回调本函数：HT 不是帧边界，直接忽略
+  if (_huart->RxEventType == HAL_UART_RXEVENT_HT)
+  {
+    return;
+  }
 
-  // 2. 将本帧数据投递到接收流缓冲区（任务上下文消费）
+  // 到此处 RxState 已为 READY —— HAL 在 IDLE/TC 事件中已自行停掉 RX DMA，
+  // 这里只需投递数据并重新武装，全程不触碰 TX DMA（不打断正在进行的发送）
   if (_rx_stream_buffer != nullptr && size > 0)
   {
     xStreamBufferSendFromISR(_rx_stream_buffer, _rx_dma_buffer, size, pxHigherPriorityTaskWoken);
   }
 
-  // 3. 立即重启 DMA 接收（ISR 原地重启，无需任务参与）
-  if (_rx_active)
+  // 重新武装 RX；失败则走一次完整恢复，避免接收无声停摆
+  if (_rx_active && !arm_reception())
   {
-    HAL_UARTEx_ReceiveToIdle_DMA(_huart, _rx_dma_buffer, BUFFER_SIZE);
+    handle_dma_error();
   }
 }
 
-// 处理DMA错误实现（供 HAL_UART_ErrorCallback 接线调用）
+// UART 错误恢复实现（供 HAL_UART_ErrorCallback 调用）
 template <size_t BUFFER_SIZE>
 void BspUart<BUFFER_SIZE>::handle_dma_error()
 {
-  // 停止当前传输
-  HAL_UART_DMAStop(_huart);
-
-  // 尝试重启接收
-  if (_rx_active)
+  // 未启用接收，或非阻塞错误（RX 仍在进行，不打断以免丢弃在途数据）
+  if (!_rx_active || _huart->RxState == HAL_UART_STATE_BUSY_RX)
   {
-    start_reception();
+    return;
+  }
+
+  // 阻塞性错误后 HAL 已中止 RX：复位接收状态并重新武装（仅 RX，不触碰 TX DMA）
+  abort_reception();
+  if (!arm_reception())
+  {
+    _rx_active = false; // 仍失败：停止重试（需重新 init 才能恢复），避免回调空转
   }
 }

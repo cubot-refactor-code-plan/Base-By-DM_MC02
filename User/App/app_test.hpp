@@ -31,6 +31,9 @@
 /** @brief 旧名称兼容；新代码应使用 APP_TEST_USB_TRANSPORT_ENABLED。 */
 #define APP_TEST_USB_CDC_ENABLED APP_TEST_USB_TRANSPORT_ENABLED
 
+/** @brief 启用 USART1 串口收发实机测试（回显 + 周期心跳）；设为 0 可停用。 */
+#define APP_TEST_UART_TRANSPORT_ENABLED 0
+
 /** @brief 编译并创建 W25Q64JV 擦写、映射与 XIP 实机测试；完成后应设回 0。 */
 #define APP_TEST_QSPI_FLASH_ENABLED 1
 
@@ -74,6 +77,12 @@ extern "C"
    * @note CDC 周期发送固定帧；HID 周期发送固定报告并回显主机 OUT Report。
    */
   void usb_transport_test_step(void);
+
+  /**
+   * @brief USART1 串口收发实机测试步骤，由 StartDefaultTask 的 1ms 循环调用。
+   * @note PC 发什么就原样回显什么；空闲时周期发送心跳（含累计收发字节数）。
+   */
+  void uart_transport_test_step(void);
 
 #ifdef __cplusplus
 }
