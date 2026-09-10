@@ -34,7 +34,7 @@
 
 /* ==================== 外部声明 ==================== */
 
-template <size_t BUFFER_SIZE, size_t MSG_SIZE>
+template <size_t BUFFER_SIZE>
 class BspUart;
 
 class ProtocolUart;
@@ -74,7 +74,7 @@ private:
   /* ==================== 私有成员变量 ==================== */
 
   ProtocolFrame    _rx_frame;      ///< 接收用结构体
-  BspUart<128, 8>& _uart_instance; ///< 使用的串口驱动实例
+  BspUart<128>& _uart_instance; ///< 使用的串口驱动实例
   uint8_t          _header1;       ///< 自定义帧头1
   uint8_t          _header2;       ///< 自定义帧头2
   uint8_t          _tail;          ///< 自定义帧尾
@@ -115,7 +115,7 @@ public:
     /**
      * @brief 按序构造配置（参数顺序 = 字段顺序）
      */
-    Config(BspUart<128, 8> &uart, uint8_t name, uint8_t h1 = 0xAA, uint8_t h2 = 0x55, uint8_t t = 0x0C)
+    Config(BspUart<128> &uart, uint8_t name, uint8_t h1 = 0xAA, uint8_t h2 = 0x55, uint8_t t = 0x0C)
       : uart(uart),
         name(name),
         h1(h1),
@@ -124,7 +124,7 @@ public:
     {
     }
 
-    BspUart<128, 8> &uart; ///< 串口实例引用
+    BspUart<128> &uart; ///< 串口实例引用
     uint8_t          name; ///< 实例名称编号
     uint8_t          h1;   ///< 帧头1
     uint8_t          h2;   ///< 帧头2

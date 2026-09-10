@@ -1,50 +1,48 @@
 #include "bsp_usb.hpp"
 
-#include "FreeRTOS.h"
 #include "external_flash.h"
-#include "stm32h7xx_hal.h"
-#include "tusb.h"
+#include "FreeRTOS.h"      // IWYU pragma: keep
+#include "stm32h7xx_hal.h" // IWYU pragma: keep
+#include "tusb.h"          // IWYU pragma: keep
 
 #include <string.h>
 
 #define USB_VID 0xCAFEU
 #if DM_MC02_USB_CLASS_CDC
-#define USB_PID 0x4001U
+#  define USB_PID 0x4001U
 #else
-#define USB_PID 0x4002U
+#  define USB_PID 0x4002U
 #endif
 #define USB_BCD 0x0200U
 
 #define EPNUM_CDC_NOTIF 0x81U
-#define EPNUM_CDC_OUT   0x02U
-#define EPNUM_CDC_IN    0x82U
-#define EPNUM_HID_OUT   0x01U
-#define EPNUM_HID_IN    0x81U
+#define EPNUM_CDC_OUT 0x02U
+#define EPNUM_CDC_IN 0x82U
+#define EPNUM_HID_OUT 0x01U
+#define EPNUM_HID_IN 0x81U
 
 #define CDC_RX_POLL_CHUNK 64U
 #define USB_PROVISION_REQUEST_VALUE 0x55535031UL /* "USP1" */
 #if DM_MC02_USB_CLASS_CDC
-#define USB_XIP_MAGIC_VALUE 0x55424331UL /* "UBC1": USB CDC payload v1 */
+#  define USB_XIP_MAGIC_VALUE 0x55424331UL /* "UBC1": USB CDC payload v1 */
 #else
-#define USB_XIP_MAGIC_VALUE 0x55424831UL /* "UBH1": USB HID payload v1 */
+#  define USB_XIP_MAGIC_VALUE 0x55424831UL /* "UBH1": USB HID payload v1 */
 #endif
 #define USB_XIP_TEXT __attribute__((section(".usb_xip_text"), noinline))
 #define USB_XIP_RODATA __attribute__((section(".usb_xip_rodata"), used))
 
 #if DM_MC02_USB_CLASS_CDC
-#define CONFIG_TOTAL_LEN (TUD_CONFIG_DESC_LEN + TUD_CDC_DESC_LEN)
+#  define CONFIG_TOTAL_LEN (TUD_CONFIG_DESC_LEN + TUD_CDC_DESC_LEN)
 #else
-#define CONFIG_TOTAL_LEN (TUD_CONFIG_DESC_LEN + TUD_HID_INOUT_DESC_LEN)
+#  define CONFIG_TOTAL_LEN (TUD_CONFIG_DESC_LEN + TUD_HID_INOUT_DESC_LEN)
 #endif
 
-extern "C" __attribute__((section(".usb_xip_header"), used))
-volatile const uint32_t dm_mc02_usb_xip_magic = USB_XIP_MAGIC_VALUE;
+extern "C" __attribute__((section(".usb_xip_header"), used)) volatile const uint32_t dm_mc02_usb_xip_magic = USB_XIP_MAGIC_VALUE;
 
 /* OpenOCD writes this NOLOAD mailbox before starting the provisioning boot. */
 extern "C"
 {
-__attribute__((section(".usb_provision_mailbox"), used))
-volatile uint32_t dm_mc02_usb_provision_request = 0U;
+  __attribute__((section(".usb_provision_mailbox"), used)) volatile uint32_t dm_mc02_usb_provision_request = 0U;
 }
 
 /** @brief USB OTG HS 中断入口，转交 TinyUSB DCD 处理。 */
@@ -73,7 +71,7 @@ BspUsb& BspUsb::instance()
 void BspUsb::init()
 {
   ext_flash_info_t info = {};
-  const bool provision_requested =
+  const bool       provision_requested =
     dm_mc02_usb_provision_request == USB_PROVISION_REQUEST_VALUE;
 
   dm_mc02_usb_provision_request = 0U;
@@ -222,8 +220,7 @@ uint32_t BspUsb::cdc_available() const
 bool BspUsb::hid_write(const uint8_t* data, uint32_t len)
 {
 #if DM_MC02_USB_CLASS_HID
-  if ((data == nullptr) || (len == 0U) || (len > HID_REPORT_SIZE) ||
-      !is_ready())
+  if ((data == nullptr) || (len == 0U) || (len > HID_REPORT_SIZE) || !is_ready())
   {
     return false;
   }
@@ -265,8 +262,7 @@ uint32_t BspUsb::hid_available() const
 #if DM_MC02_USB_CLASS_HID
   const uint16_t head = _hid_rx_head;
   const uint16_t tail = _hid_rx_tail;
-  return head >= tail ? static_cast<uint32_t>(head - tail) :
-                        static_cast<uint32_t>(HID_RX_BUFFER_SIZE - tail + head);
+  return head >= tail ? static_cast<uint32_t>(head - tail) : static_cast<uint32_t>(HID_RX_BUFFER_SIZE - tail + head);
 #else
   return 0U;
 #endif
@@ -281,14 +277,13 @@ void BspUsb::accept_hid_report(const uint8_t* data, uint32_t len)
   }
   for (uint32_t index = 0U; index < len; ++index)
   {
-    const uint16_t next = static_cast<uint16_t>((_hid_rx_head + 1U) %
-                                                 HID_RX_BUFFER_SIZE);
+    const uint16_t next = static_cast<uint16_t>((_hid_rx_head + 1U) % HID_RX_BUFFER_SIZE);
     if (next == _hid_rx_tail)
     {
       break;
     }
     _hid_rx_buffer[_hid_rx_head] = data[index];
-    _hid_rx_head = next;
+    _hid_rx_head                 = next;
   }
 #else
   (void)data;
@@ -335,34 +330,21 @@ void BspUsb::process_rx()
 
 #if DM_MC02_USB_CLASS_CDC
 static USB_XIP_RODATA const tusb_desc_device_t desc_device = {
-  sizeof(tusb_desc_device_t), TUSB_DESC_DEVICE, USB_BCD,
-  TUSB_CLASS_MISC, MISC_SUBCLASS_COMMON, MISC_PROTOCOL_IAD,
-  CFG_TUD_ENDPOINT0_SIZE, USB_VID, USB_PID, 0x0100U,
-  0x01U, 0x02U, 0x03U, 0x01U
-};
+  sizeof(tusb_desc_device_t), TUSB_DESC_DEVICE, USB_BCD, TUSB_CLASS_MISC, MISC_SUBCLASS_COMMON, MISC_PROTOCOL_IAD, CFG_TUD_ENDPOINT0_SIZE, USB_VID, USB_PID, 0x0100U, 0x01U, 0x02U, 0x03U, 0x01U};
 
 static USB_XIP_RODATA const uint8_t desc_configuration[] = {
   TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, 0, 100),
-  TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, 4, EPNUM_CDC_NOTIF, 8,
-                     EPNUM_CDC_OUT, EPNUM_CDC_IN, CFG_TUD_CDC_EP_BUFSIZE)
-};
+  TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, 4, EPNUM_CDC_NOTIF, 8, EPNUM_CDC_OUT, EPNUM_CDC_IN, CFG_TUD_CDC_EP_BUFSIZE)};
 #else
 static USB_XIP_RODATA const tusb_desc_device_t desc_device = {
-  sizeof(tusb_desc_device_t), TUSB_DESC_DEVICE, USB_BCD,
-  0x00U, 0x00U, 0x00U, CFG_TUD_ENDPOINT0_SIZE,
-  USB_VID, USB_PID, 0x0100U, 0x01U, 0x02U, 0x03U, 0x01U
-};
+  sizeof(tusb_desc_device_t), TUSB_DESC_DEVICE, USB_BCD, 0x00U, 0x00U, 0x00U, CFG_TUD_ENDPOINT0_SIZE, USB_VID, USB_PID, 0x0100U, 0x01U, 0x02U, 0x03U, 0x01U};
 
 static USB_XIP_RODATA const uint8_t desc_hid_report[] = {
-  TUD_HID_REPORT_DESC_GENERIC_INOUT(BspUsb::HID_REPORT_SIZE)
-};
+  TUD_HID_REPORT_DESC_GENERIC_INOUT(BspUsb::HID_REPORT_SIZE)};
 
 static USB_XIP_RODATA const uint8_t desc_configuration[] = {
   TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, 0, 100),
-  TUD_HID_INOUT_DESCRIPTOR(ITF_NUM_HID, 4, HID_ITF_PROTOCOL_NONE,
-                           sizeof(desc_hid_report), EPNUM_HID_OUT,
-                           EPNUM_HID_IN, CFG_TUD_HID_EP_BUFSIZE, 1)
-};
+  TUD_HID_INOUT_DESCRIPTOR(ITF_NUM_HID, 4, HID_ITF_PROTOCOL_NONE, sizeof(desc_hid_report), EPNUM_HID_OUT, EPNUM_HID_IN, CFG_TUD_HID_EP_BUFSIZE, 1)};
 #endif
 
 extern "C" USB_XIP_TEXT uint8_t const* tud_descriptor_device_cb(void)
@@ -384,11 +366,11 @@ extern "C" USB_XIP_TEXT uint8_t const* tud_hid_descriptor_report_cb(uint8_t inst
 }
 
 extern "C" USB_XIP_TEXT uint16_t tud_hid_get_report_cb(
-  uint8_t instance,
-  uint8_t report_id,
+  uint8_t           instance,
+  uint8_t           report_id,
   hid_report_type_t report_type,
-  uint8_t* buffer,
-  uint16_t reqlen)
+  uint8_t*          buffer,
+  uint16_t          reqlen)
 {
   (void)instance;
   (void)report_id;
@@ -399,11 +381,11 @@ extern "C" USB_XIP_TEXT uint16_t tud_hid_get_report_cb(
 }
 
 extern "C" USB_XIP_TEXT void tud_hid_set_report_cb(
-  uint8_t instance,
-  uint8_t report_id,
+  uint8_t           instance,
+  uint8_t           report_id,
   hid_report_type_t report_type,
-  uint8_t const* buffer,
-  uint16_t bufsize)
+  uint8_t const*    buffer,
+  uint16_t          bufsize)
 {
   (void)instance;
   (void)report_id;
@@ -425,10 +407,10 @@ enum
 #endif
 };
 
-static USB_XIP_RODATA const char string_langid[] = {0x09, 0x04};
+static USB_XIP_RODATA const char string_langid[]       = {0x09, 0x04};
 static USB_XIP_RODATA const char string_manufacturer[] = "RoboMaster";
 #if DM_MC02_USB_CLASS_CDC
-static USB_XIP_RODATA const char string_product[] = "TY H723 TinyUSB CDC";
+static USB_XIP_RODATA const char string_product[]   = "TY H723 TinyUSB CDC";
 static USB_XIP_RODATA const char string_interface[] = "TinyUSB CDC";
 #else
 static USB_XIP_RODATA const char string_product[] = "TY H723 TinyUSB HID";
@@ -447,8 +429,8 @@ static USB_XIP_RODATA const char* const string_desc_arr[] = {
 
 static uint16_t desc_string[32];
 
-extern "C" USB_XIP_TEXT uint16_t const* tud_descriptor_string_cb(uint8_t index,
-                                                                  uint16_t langid)
+extern "C" USB_XIP_TEXT uint16_t const* tud_descriptor_string_cb(uint8_t  index,
+                                                                 uint16_t langid)
 {
   (void)langid;
   uint8_t chr_count;
@@ -456,7 +438,7 @@ extern "C" USB_XIP_TEXT uint16_t const* tud_descriptor_string_cb(uint8_t index,
   if (index == STRID_LANGID)
   {
     desc_string[1] = 0x0409U;
-    chr_count = 1U;
+    chr_count      = 1U;
   }
   else
   {
@@ -465,7 +447,7 @@ extern "C" USB_XIP_TEXT uint16_t const* tud_descriptor_string_cb(uint8_t index,
       return nullptr;
     }
     const char* str = string_desc_arr[index];
-    chr_count = static_cast<uint8_t>(strlen(str));
+    chr_count       = static_cast<uint8_t>(strlen(str));
     if (chr_count > 31U)
     {
       chr_count = 31U;
@@ -476,7 +458,6 @@ extern "C" USB_XIP_TEXT uint16_t const* tud_descriptor_string_cb(uint8_t index,
     }
   }
 
-  desc_string[0] = static_cast<uint16_t>((TUSB_DESC_STRING << 8U) |
-                                         (2U * chr_count + 2U));
+  desc_string[0] = static_cast<uint16_t>((TUSB_DESC_STRING << 8U) | (2U * chr_count + 2U));
   return desc_string;
 }

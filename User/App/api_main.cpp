@@ -151,7 +151,6 @@ extern "C" void StartDefaultTask(void *argument)
 #if APP_TEST_USB_TRANSPORT_ENABLED
     usb_transport_test_step();
 #endif
-
     osDelay(1);
   }
 }

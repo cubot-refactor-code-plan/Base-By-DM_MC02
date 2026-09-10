@@ -1251,14 +1251,6 @@ bool DeviceEmmV5::feed_rx(const uint8_t *data, size_t n)
   return false;
 }
 
-/**
- * @brief 重启 DMA 接收（任务上下文调用；ISR 只停 DMA 不重启）
- */
-void DeviceEmmV5::restart_rx()
-{
-  _uart.restart_rx();
-}
-
 
 /* ==================================================================
  *  到位信号量绑定
@@ -1319,7 +1311,6 @@ void DeviceEmmV5::rx_task_entry(void *arg)
   {
     size_t n = 0;
     Status s = m->receive_raw(buf, sizeof(buf), &n, portMAX_DELAY);
-    m->restart_rx(); // ISR 只停 DMA 不重启，由任务重启
 
     // 基于流缓冲区的滑动窗口装配，真正收到完整帧才命中
     if (s == Status::OK && n > 0 && m->feed_rx(buf, n) && m->_in_pos_sem != nullptr)

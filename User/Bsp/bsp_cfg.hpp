@@ -33,14 +33,14 @@ extern BspCan bsp_can3;
 
 
 ///< UART
-extern BspUart<128, 8> bsp_uart1;
-extern BspUart<128, 8> bsp_uart3;
-extern BspUart<128, 8> bsp_uart4;
-extern BspUart<128, 8> bsp_uart5;
-extern BspUart<128, 8> bsp_uart7;
-extern BspUart<128, 8> bsp_uart8;
-extern BspUart<128, 8> bsp_uart9;
-extern BspUart<128, 8> bsp_uart10;
+extern BspUart<128> bsp_uart1;
+extern BspUart<128> bsp_uart3;
+extern BspUart<128> bsp_uart4;
+extern BspUart<128> bsp_uart5;
+extern BspUart<128> bsp_uart7;
+extern BspUart<128> bsp_uart8;
+extern BspUart<128> bsp_uart9;
+extern BspUart<128> bsp_uart10;
 
 
 ///< GPIO 输出引脚（电源控制、片选等）

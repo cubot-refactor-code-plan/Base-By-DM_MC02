@@ -2,8 +2,8 @@
  * @file bsp_buzzer.hpp
  * @author Rh
  * @brief 蜂鸣器驱动 —— PWM 无源蜂鸣器（默认 TIM12 CH2 PB15）
- * @version 0.2
- * @date 2026-07-24
+ * @version 0.3
+ * @date 2026-09-10
  *
  * @copyright Copyright (c) 2026
  *
@@ -14,7 +14,7 @@
  *
  * @note 初始化示例（默认配置）：
  *
- *       // 参数顺序：htim, channel, base_clk, default_freq, default_vol, freq_min, freq_max, short_ms, long_ms, gap_ms
+ *       // 参数顺序：htim, channel, base_clk, default_freq, freq_min, freq_max, short_ms, long_ms, gap_ms
  *       BspBuzzer buzzer2({&htim3, TIM_CHANNEL_1, 1000000UL}); // 1 MHz 基频，其余默认
  *
  * @note 使用示例：
@@ -54,13 +54,12 @@ public:
     /**
      * @brief 按序构造配置（参数顺序 = 字段顺序，可匿名传入）
      */
-    Config(TIM_HandleTypeDef *htim = &htim12, uint32_t channel = TIM_CHANNEL_2, uint32_t base_clk = 6000000UL, uint32_t default_freq = 3000UL, uint32_t default_vol = 50, uint32_t freq_min = 50, uint32_t freq_max = 20000, uint32_t short_ms = 80, uint32_t long_ms = 400, uint32_t gap_ms = 100)
+    Config(TIM_HandleTypeDef *htim = &htim12, uint32_t channel = TIM_CHANNEL_2, uint32_t base_clk = 6000000UL, uint32_t default_freq = 3000UL, uint32_t freq_min = 50, uint32_t freq_max = 20000, uint32_t short_ms = 80, uint32_t long_ms = 400, uint32_t gap_ms = 100)
 
       : htim(htim),
         channel(channel),
         base_clk(base_clk),
         default_freq(default_freq),
-        default_vol(default_vol),
         freq_min(freq_min),
         freq_max(freq_max),
         short_ms(short_ms),
@@ -73,7 +72,6 @@ public:
     uint32_t           channel;      ///< PWM 通道
     uint32_t           base_clk;     ///< 计数基频 (Hz) = 定时器主频 / (PSC+1)
     uint32_t           default_freq; ///< 默认鸣叫频率 (Hz)
-    uint32_t           default_vol;  ///< 默认占空比 (%)
     uint32_t           freq_min;     ///< 频率下限 (Hz)
     uint32_t           freq_max;     ///< 频率上限 (Hz)
     uint32_t           short_ms;     ///< 短鸣时长 (ms)

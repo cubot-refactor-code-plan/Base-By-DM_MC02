@@ -43,6 +43,13 @@
 
 #include "status.hpp" // 统一状态码
 
+
+/**
+ * @brief 按键驱动类
+ *
+ * @note 纯软件轮询消抖（无 ISR、无 FreeRTOS 依赖）；
+ *       poll() 需在任务中周期性调用，消抖/长按时间 = 计数阈值 × 轮询周期。
+ */
 class BspKey
 {
 public:

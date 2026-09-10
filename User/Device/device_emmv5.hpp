@@ -203,12 +203,12 @@ public:
     /**
      * @brief 按序构造配置（参数顺序 = 字段顺序）
      */
-    Config(BspUart<128, 8> &uart, uint8_t addr = 0) : uart(uart),
-                                                      addr(addr)
+    Config(BspUart<128> &uart, uint8_t addr = 0) : uart(uart),
+                                                   addr(addr)
     {
     }
 
-    BspUart<128, 8> &uart; ///< bsp_uart 实例引用
+    BspUart<128> &uart; ///< bsp_uart 实例引用
     uint8_t          addr; ///< 电机地址（1~255，0为广播地址）
   };
 
@@ -623,11 +623,6 @@ public:
    */
   bool feed_rx(const uint8_t *data, size_t n);
 
-  /**
-   * @brief 重启 DMA 接收（任务上下文调用；ISR 只停 DMA 不重启）
-   */
-  void restart_rx();
-
 
   /* ==================== 到位信号量 ==================== */
 
@@ -660,7 +655,7 @@ public:
 
   /* ==================== 成员变量 ==================== */
 
-  BspUart<128, 8> &_uart; ///< bsp_uart 实例引用
+  BspUart<128> &_uart; ///< bsp_uart 实例引用
   uint8_t          _addr; ///< 电机地址
 
 
